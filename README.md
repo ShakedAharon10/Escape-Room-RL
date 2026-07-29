@@ -57,4 +57,4 @@ An interactive educational simulation built with Python and Streamlit, demonstra
    pip install -r requirements.txt
    streamlit run app.py
 
-  2.🌐 Live Demo: [Streamlit App]
+2. 🌐 Live Demo: [Streamlit App]
