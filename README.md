@@ -57,4 +57,4 @@ An interactive educational simulation built with Python and Streamlit, demonstra
    pip install -r requirements.txt
    streamlit run app.py
 
-🌐 Live Demo: Streamlit App
+🌐 Live Demo: [Streamlit App](https://escape-room-rl-shaked-shiran-ronen.streamlit.app/)
