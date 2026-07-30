@@ -99,7 +99,7 @@ def epsilon_greedy_policy(Q, state, epsilon, nA):
     else:
         q_values = Q[state]
         max_val = np.max(q_values)
-        best_actions = np.where(q_values == max_val)[0]
+        best_actions = np.where(np.isclose(q_values, max_val))[0]
         return np.random.choice(best_actions)
 
 def sarsa(env, num_episodes=2000, alpha=0.1, gamma=0.99, epsilon_start=1.0, epsilon_decay=0.995, epsilon_min=0.01, save_freq=500, live_callback=None):
