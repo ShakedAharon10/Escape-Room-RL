@@ -122,7 +122,7 @@ def policy_iteration(env, discount_factor=0.99, theta=0.0001):
 
             best_a = np.argmax(action_values)
 
-            if chosen_a != best_a:
+            if not np.isclose(action_values[chosen_a], action_values[best_a]):
                 policy_stable = False
                 changes_this_iter += 1
 
