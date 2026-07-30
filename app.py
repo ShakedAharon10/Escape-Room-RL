@@ -5,12 +5,24 @@ import copy
 import plotly.graph_objects as go
 import plotly.express as px
 import torch
+import random
 
 import room1_DP
 import room2_Sarsa
 import room3_Qlearning
 import room4_DQN
 import room5_DoubleDQN
+
+def set_global_seed(seed=42):
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+if 'seed_set' not in st.session_state:
+    set_global_seed(42)
+    st.session_state.seed_set = True
 
 # ==========================================
 # הגדרות עמוד ראשי -CSS חללי/סייברפאנק
@@ -161,7 +173,7 @@ def visualize_grid_episode(env, policy, max_steps=100):
             state = next_state
         else: break
             
-        time.sleep(0.15) 
+        time.sleep(0.10) 
         if done and reward < 0:
             success_placeholder.markdown(f"<div class='metric-card' style='border-color:#ff0000;'><h4>💥 כישלון אפיזודה</h4><h2 style='color:#ff0000;'>הסוכן התרסק לאחר {step} צעדים.</h2></div>", unsafe_allow_html=True)
             break
@@ -248,7 +260,7 @@ if room_choice == "Room 1: Dynamic Programming":
     st.header("Room 1 - Dynamic Programming (DP)")
     show_room_info("Policy Iteration (Known Model)", "10x10 Grid (100 discrete states)", "4 directions (up, down, right, left)", "Slippery cells creating stochastic uncertainty in movement.")
     st.sidebar.header("⚙️ הייפר-פרמטרים לאימון")
-    discount_factor = st.sidebar.slider("Discount Factor (γ)", 0.8, 0.999, 0.99)
+    discount_factor = st.sidebar.slider("Discount Factor (γ)", 0.1, 0.999, 0.99)
     theta = st.sidebar.number_input("Theta (Convergence)", value=0.0001, format="%.5f")
     
     # אתחול ראשוני לסביבה רגילה (אם טרם נוצרה)
@@ -289,7 +301,7 @@ elif room_choice == "Room 2: SARSA":
     st.header("Room 2 - SARSA (On-Policy)")
     show_room_info("SARSA", "10x10 Grid (100 discrete states)", "4 directions", "Unknown environment model, heavy traps (penalty -50) combined with slippery cells.")
     st.sidebar.header("⚙️ הייפר-פרמטרים לאימון")
-    episodes = st.sidebar.slider("Episodes", 100, 5000, 2000, step=100)
+    episodes = st.sidebar.slider("Episodes", 100, 3000, 1000, step=100)
     alpha = st.sidebar.slider("Learning Rate (α)", 0.01, 1.0, 0.1)
     gamma = st.sidebar.slider("Discount Factor (γ)", 0.8, 0.999, 0.99)
     epsilon_decay = st.sidebar.slider("Epsilon Decay", 0.9, 0.999, 0.995)
@@ -353,7 +365,7 @@ elif room_choice == "Room 3: Q-Learning":
     st.header("Room 3 - Q-Learning (Off-Policy)")
     show_room_info("Q-Learning", "10x10 Grid (100 discrete states)", "4 directions", "Dangerous cliff (penalty -100) creating a dilemma between a shortcut and a safe detour.")
     st.sidebar.header("⚙️ הייפר-פרמטרים לאימון")
-    episodes = st.sidebar.slider("Episodes", 100, 5000, 2000, step=100)
+    episodes = st.sidebar.slider("Episodes", 100, 3000, 1000, step=100)
     alpha = st.sidebar.slider("Learning Rate (α)", 0.01, 1.0, 0.1)
     gamma = st.sidebar.slider("Discount Factor (γ)", 0.8, 0.999, 0.99)
     epsilon_decay = st.sidebar.slider("Epsilon Decay", 0.9, 0.999, 0.995)
@@ -417,11 +429,12 @@ elif room_choice == "Room 4: Continuous DQN":
     st.header("Room 4 - Deep Q-Network in Continuous Space")
     show_room_info("Deep Q-Network (DQN)", "Continuous: 10x10 meters, Position (X,Y) and Velocity (Vx,Vy)", "9 velocity combinations (discretized actions)", "Value function approximation in infinite space, neural networks, and Reward Shaping.")
     st.sidebar.header("⚙️ הייפר-פרמטרים לאימון")
-    episodes = st.sidebar.slider("Episodes", 200, 2000, 1000, step=50)
+    episodes = st.sidebar.slider("Episodes", 200, 2000, 800, step=50)
     learning_rate = st.sidebar.number_input("Learning Rate (α)", min_value=0.0001, max_value=0.01, value=0.001, step=0.0001, format="%.4f")
     gamma = st.sidebar.slider("Discount Factor (γ)", 0.80, 0.99, 0.99)
     batch_size = st.sidebar.selectbox("Batch Size", [32, 64, 128], index=1)
-    epsilon_decay = st.sidebar.slider("Epsilon Decay", 0.900, 0.999, 0.995, step=0.001)
+    epsilon_decay = st.sidebar.slider("Epsilon Decay", 0.900, 0.999, 0.992, step=0.001)
+    target_update_freq = st.sidebar.slider("Target Net Update Freq", 50, 500, 100, step=50)
     save_freq = st.sidebar.slider("תדירות שמירת מצבים (Checkpoints)", 50, 200, 50, step=50)
     
     if 'room4_base_env' not in st.session_state:
@@ -449,7 +462,7 @@ elif room_choice == "Room 4: Continuous DQN":
             agent, rewards, steps, epsilons, checkpoints = room4_DQN.train_dqn(
                 optimized_env, episodes=episodes, learning_rate=learning_rate, gamma=gamma,
                 batch_size=batch_size, epsilon_decay=epsilon_decay, save_freq=save_freq, 
-                progress_bar=progress_bar, status_text=status_text, live_callback=callback
+                progress_bar=progress_bar, status_text=status_text, live_callback=callback, target_update_freq=target_update_freq
             )
             st.session_state.room4_data = (agent, optimized_env, rewards, steps, epsilons, checkpoints)
             
@@ -470,16 +483,18 @@ elif room_choice == "Room 4: Continuous DQN":
         V_matrix = np.zeros((grid_resolution, grid_resolution))
         
         agent.q_network.eval()
-        with torch.no_grad(): # מניעת חישובי גרדיאנטים כדי לחסוך בזיכרון
-            for i, y in enumerate(y_vals):
-                for j, x in enumerate(x_vals):
-                    # אנחנו בודקים את המרחב תחת ההנחה שהמהירות היא 0
+        with torch.no_grad():
+            states_list = []
+            for y in y_vals:
+                for x in x_vals:
                     dummy_state = np.array([x, y, 0.0, 0.0])
-                    norm_state = optimized_env._normalize_state(dummy_state)
-                    state_tensor = torch.tensor(norm_state, dtype=torch.float32).unsqueeze(0)
-                    
-                    q_values = agent.q_network(state_tensor)
-                    V_matrix[i, j] = torch.max(q_values).item()
+                    states_list.append(optimized_env._normalize_state(dummy_state))
+            
+            states_tensor = torch.tensor(np.array(states_list), dtype=torch.float32)
+            q_values = agent.q_network(states_tensor)
+            max_q_values = torch.max(q_values, dim=1)[0].numpy()
+            
+            V_matrix = max_q_values.reshape((grid_resolution, grid_resolution))
                     
         fig_heatmap = px.imshow(V_matrix, x=x_vals, y=y_vals, color_continuous_scale='Magma', origin='lower')
 
@@ -504,10 +519,11 @@ elif room_choice == "Room 5: Double DQN":
     show_room_info("Double DQN", "20-dimensional vector (X, Y, Vx, Vy + 16 Raycast sensors)", "9 velocity combinations", "Dodge dynamically generated obstacles and prevent overestimation using DDQN.")
     st.sidebar.header("⚙️ הייפר-פרמטרים לאימון")
     episodes = st.sidebar.slider("Episodes", 200, 3000, 1500, step=100)
-    learning_rate = st.sidebar.number_input("Learning Rate (α)", min_value=0.0001, max_value=0.01, value=0.001, step=0.0001, format="%.4f")
+    learning_rate = st.sidebar.number_input("Learning Rate (α)", min_value=0.0001, max_value=0.01, value=0.0005, step=0.0001, format="%.4f")
     gamma = st.sidebar.slider("Discount Factor (γ)", 0.80, 0.99, 0.99)
     batch_size = st.sidebar.selectbox("Batch Size", [32, 64, 128], index=1)
-    epsilon_decay = st.sidebar.slider("Epsilon Decay", 0.900, 0.999, 0.995, step=0.001)
+    epsilon_decay = st.sidebar.slider("Epsilon Decay", 0.900, 0.999, 0.997, step=0.001)
+    target_update_freq = st.sidebar.slider("Target Net Update Freq", 50, 500, 200, step=50)
     save_freq = st.sidebar.slider("תדירות שמירת מצבים (Checkpoints)", 50, 200, 50, step=50)
     
     if 'room5_base_env' not in st.session_state:
@@ -536,7 +552,7 @@ elif room_choice == "Room 5: Double DQN":
             agent, rewards, steps, epsilons, checkpoints = room5_DoubleDQN.train_room5(
                 optimized_env, episodes=episodes, learning_rate=learning_rate, gamma=gamma,
                 batch_size=batch_size, epsilon_decay=epsilon_decay, save_freq=save_freq, 
-                progress_bar=progress_bar, status_text=status_text, live_callback=callback
+                progress_bar=progress_bar, status_text=status_text, live_callback=callback, target_update_freq=target_update_freq
             )
             st.session_state.room5_data = (agent, rewards, steps, epsilons, checkpoints)
             
@@ -558,19 +574,19 @@ elif room_choice == "Room 5: Double DQN":
         
         agent.q_network.eval()
         with torch.no_grad():
-            for i, y in enumerate(y_vals):
-                for j, x in enumerate(x_vals):
-                    # זיוף המיקום של הסוכן כדי שהסביבה תחשב את קרני הלייזר
+            obs_list = []
+            for y in y_vals:
+                for x in x_vals:
                     base_env.agent_pos = np.array([x, y], dtype=np.float32)
                     base_env.agent_vel = np.array([0.0, 0.0], dtype=np.float32)
-                    
-                    # קבלת המצב החדש כולל 16 החיישנים
                     raw_obs = base_env._get_obs()
-                    norm_obs = optimized_env._normalize_state(raw_obs)
-                    
-                    state_tensor = torch.tensor(norm_obs, dtype=torch.float32).unsqueeze(0)
-                    q_values = agent.q_network(state_tensor)
-                    V_matrix[i, j] = torch.max(q_values).item()
+                    obs_list.append(optimized_env._normalize_state(raw_obs))
+            
+            states_tensor = torch.tensor(np.array(obs_list), dtype=torch.float32)
+            q_values = agent.q_network(states_tensor)
+            max_q_values = torch.max(q_values, dim=1)[0].numpy()
+            
+            V_matrix = max_q_values.reshape((grid_resolution, grid_resolution))
                     
         
         fig_heatmap = go.Figure(data=go.Heatmap(z=V_matrix, x=x_vals, y=y_vals, colorscale='Magma'))
