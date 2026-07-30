@@ -186,8 +186,8 @@ class DQNAgent:
         if self.steps_done % self.target_update_freq == 0:
             self.target_network.load_state_dict(self.q_network.state_dict())
 
-def train_dqn(env, episodes=400, learning_rate=1e-3, gamma=0.99, batch_size=64, epsilon_decay=0.995, save_freq=100, progress_bar=None, status_text=None, live_callback=None):
-    agent = DQNAgent(env, learning_rate=learning_rate, gamma=gamma, batch_size=batch_size)
+def train_dqn(env, episodes=400, learning_rate=1e-3, gamma=0.99, batch_size=64, epsilon_decay=0.995, save_freq=100, progress_bar=None, status_text=None, live_callback=None, target_update_freq=100):
+    agent = DQNAgent(env, learning_rate=learning_rate, gamma=gamma, batch_size=batch_size, target_update_freq=target_update_freq)
     epsilon = 1.0
     epsilon_min = 0.05
     rewards_history = []
