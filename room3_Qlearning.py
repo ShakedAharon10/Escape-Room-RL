@@ -96,7 +96,7 @@ def epsilon_greedy_policy(Q, state, epsilon, nA):
     else:
         q_values = Q[state]
         max_val = np.max(q_values)
-        best_actions = np.where(q_values == max_val)[0]
+        best_actions = np.where(np.isclose(q_values, max_val))[0]
         return np.random.choice(best_actions)
 
 def q_learning(env, num_episodes=2000, alpha=0.1, gamma=0.99, epsilon_start=1.0, epsilon_decay=0.995, epsilon_min=0.01, save_freq=500, live_callback=None):
@@ -117,8 +117,7 @@ def q_learning(env, num_episodes=2000, alpha=0.1, gamma=0.99, epsilon_start=1.0,
             action = epsilon_greedy_policy(Q, state, epsilon, env.nA)
             next_state, reward, done, _ = env.step(action)
             
-            best_next_action = np.random.choice(np.where(Q[next_state] == np.max(Q[next_state]))[0])
-            target = reward + gamma * Q[next_state][best_next_action]
+            target = reward + gamma * np.max(Q[next_state])
             
             Q[state][action] = Q[state][action] + alpha * (target - Q[state][action])
             
@@ -137,7 +136,7 @@ def q_learning(env, num_episodes=2000, alpha=0.1, gamma=0.99, epsilon_start=1.0,
                 live_callback(episode + 1, Q, env)
 
     if num_episodes not in checkpoints:
-            checkpoints[num_episodes] = Q.copy()
+        checkpoints[num_episodes] = Q.copy()
         
     return Q, episode_rewards, episode_steps, epsilons, checkpoints
 
