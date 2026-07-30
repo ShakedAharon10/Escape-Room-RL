@@ -60,14 +60,6 @@ class Room5Env:
                 
         return self._get_obs()
         
-        num_obs = np.random.randint(self.num_obstacles_range[0], self.num_obstacles_range[1] + 1)
-        self.obstacles = []
-        while len(self.obstacles) < num_obs:
-            obs_pos = np.random.uniform(1.0, 9.0, size=2)
-            if np.linalg.norm(obs_pos - self.agent_pos) > 1.5 and np.linalg.norm(obs_pos - self.goal_pos) > 1.5:
-                self.obstacles.append(obs_pos)
-                
-        return self._get_obs()
 
     def _get_obs(self):
         sector_dists = np.full(self.num_rays, self.ray_length)
@@ -232,8 +224,8 @@ class DDQNAgentRoom5:
         if self.steps_done % self.target_update_freq == 0:
             self.target_network.load_state_dict(self.q_network.state_dict())
 
-def train_room5(env, episodes=2000, learning_rate=5e-4, gamma=0.99, batch_size=64, epsilon_decay=0.995, save_freq=500, progress_bar=None, status_text=None, live_callback=None):
-    agent = DDQNAgentRoom5(env, learning_rate=learning_rate, gamma=gamma, batch_size=batch_size)
+def train_room5(env, episodes=2000, learning_rate=5e-4, gamma=0.99, batch_size=64, epsilon_decay=0.995, save_freq=500, progress_bar=None, status_text=None, live_callback=None, target_update_freq=200):
+    agent = DDQNAgentRoom5(env, learning_rate=learning_rate, gamma=gamma, batch_size=batch_size, target_update_freq=target_update_freq)
     epsilon = 1.0
     epsilon_min = 0.01
     rewards_history = []
